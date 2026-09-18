@@ -29,7 +29,6 @@ app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }));
 app.use('/api/public/campaigns/:slug/register', rateLimit({ windowMs: 60 * 60 * 1000, limit: 20 }));
-app.use('/api/admin/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 }));
 
 app.get('/', (_req, res) => res.json({ success: true, message: 'Reward campaign backend is running' }));
 app.get('/api/health', async (_req, res, next) => {

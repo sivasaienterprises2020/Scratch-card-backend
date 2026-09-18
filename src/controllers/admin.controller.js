@@ -1,47 +1,8 @@
-import argon2 from 'argon2';
 import { query } from '../config/database.js';
 import { ApiError } from '../utils/api-error.js';
-import { signAdminToken } from '../utils/security.js';
 import { audit } from '../services/audit.service.js';
 import { uploadImage } from '../services/storage.service.js';
-import { campaignUpdateSchema, loginSchema, rewardUpdateSchema, setupAdminSchema } from '../validators/schemas.js';
-
-export async function setupAdmin(req, res) {
-  const body = setupAdminSchema.parse(req.body);
-  const count = await query('SELECT COUNT(*)::int AS count FROM admin_users');
-  if (count.rows[0].count > 0) throw new ApiError(409, 'Initial admin already exists', 'ADMIN_EXISTS');
-  const passwordHash = await argon2.hash(body.password, { type: argon2.argon2id });
-  const result = await query(
-    `INSERT INTO admin_users (full_name, email, password_hash)
-     VALUES ($1, lower($2), $3)
-     RETURNING id, full_name, email, is_active, created_at`,
-    [body.fullName, body.email, passwordHash]
-  );
-  res.status(201).json({ success: true, data: result.rows[0] });
-}
-
-export async function login(req, res) {
-  const body = loginSchema.parse(req.body);
-  const result = await query('SELECT * FROM admin_users WHERE lower(email) = lower($1)', [body.email]);
-  const admin = result.rows[0];
-  if (!admin || !admin.is_active || !(await argon2.verify(admin.password_hash, body.password))) {
-    throw new ApiError(401, 'Email or password is incorrect', 'INVALID_CREDENTIALS');
-  }
-  await query('UPDATE admin_users SET last_login_at = NOW() WHERE id = $1', [admin.id]);
-  res.json({
-    success: true,
-    data: { token: signAdminToken(admin), admin: { id: admin.id, fullName: admin.full_name, email: admin.email } }
-  });
-}
-
-export async function adminMe(req, res) {
-  const result = await query(
-    'SELECT id, full_name, email, last_login_at, created_at FROM admin_users WHERE id = $1 AND is_active = TRUE',
-    [req.auth.sub]
-  );
-  if (!result.rowCount) throw new ApiError(404, 'Admin not found', 'ADMIN_NOT_FOUND');
-  res.json({ success: true, data: result.rows[0] });
-}
+import { campaignUpdateSchema, rewardUpdateSchema } from '../validators/schemas.js';
 
 export async function dashboard(req, res) {
   const campaignId = req.params.campaignId;
